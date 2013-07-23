@@ -11,6 +11,7 @@ import logging
 import json
 import re
 import pandas as pd
+import subprocess
 
 log = logging.getLogger(__name__)
 
@@ -36,9 +37,19 @@ class GameInput(BaseInput):
         efolds = [ join_path(directory,f) for f in os.listdir(directory) if os.path.isdir(os.path.join(directory,f))]
         efiles = []
         for fold in efolds:
-            efiles+= [join_path(fold,i) for i in os.listdir(fold) if os.path.isfile(join_path(fold,i))]
+            files = [i for i in os.listdir(fold) if os.path.isfile(join_path(fold,i)) if i.endswith(".EVN")]
+            years = list(set([i[:4] for i in files]))
+            for y in years:
+                if not os.path.isfile('{0}/events-{1}.csv'.format(settings.DATA_PATH,y)):
+                    cmd = "{cp}cwevent -q -n -f 0-96 -x 0-62 -y {y} {y}*.EV* > {dp}/events-{y}.csv".format(cp = settings.CHADWICK_PATH,  dp = settings.DATA_PATH,y=y)
+                    os.chdir(fold)
+                    subprocess.call(cmd, shell=True)
+                if not os.path.isfile('{0}/games-{1}.csv'.format(settings.DATA_PATH,y)):
+                    cmd = "{cp}cwgame -q -n -f 0-83 -y {y} {y}*.EV* > {dp}/games-{y}.csv".format(cp=settings.CHADWICK_PATH,  dp=settings.DATA_PATH,y=y)
+                    subprocess.call(cmd, shell=True)
+            efiles +=[join_path(fold,i) for i in os.listdir(fold) if os.path.isfile(join_path(fold,i))]
+
         rfiles = [f for f in efiles if f.endswith(".ROS")]
-        efiles = [f for f in efiles if not f.endswith(".ROS")]
         rosters = []
         for r in rfiles:
             filestream = open(r)
@@ -50,14 +61,23 @@ class GameInput(BaseInput):
             rosters.append(df)
         roster = pd.concat(rosters,axis=0)
 
-        seasons = []
-        for e in efiles:
-            season=[]
-            reader = csv.reader(open(e))
-            for row in reader:
-                season.append(row)
-            seasons.append(season)
+        game_files = [g for g in os.listdir(settings.DATA_PATH) if g.startswith('games-')]
+        event_files = [e for e in os.listdir(settings.DATA_PATH) if e.startswith('events-')]
+
+        games = []
+        for g in game_files:
+            df = pd.read_csv(open(g))
+            games.append(df)
+        games = pd.concat(games,axis=0)
+
+        events = []
+        for e in event_files:
+            df = pd.read_csv(open(e))
+            events.append(df)
+        events = pd.concat(events,axis=0)
+
         self.data = {
             'rosters' : roster,
-            'seasons' : seasons
+            'games' : games,
+            'events' : events,
         }

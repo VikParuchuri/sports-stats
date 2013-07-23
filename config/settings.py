@@ -9,6 +9,8 @@ import sys
 #Various paths
 PROJECT_PATH = path(__file__).dirname().dirname()
 
+CHADWICK_PATH = "/usr/local/bin/"
+
 #Where to cache values during the run
 CACHE = "percept.fields.caches.MemoryCache"
 #Do we use json to serialize the values in in the cache?

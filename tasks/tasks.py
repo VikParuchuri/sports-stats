@@ -16,6 +16,7 @@ from sklearn.ensemble import RandomForestClassifier
 import pickle
 import random
 
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -32,6 +33,8 @@ def make_df(datalist, labels, name_prefix=""):
     df.columns = labels
     df.index = range(df.shape[0])
     return df
+
+row_types = ["id","info","start","play","sub","data"]
 
 class ProcessGame(Task):
     data = Complex()
@@ -59,6 +62,6 @@ class ProcessGame(Task):
         """
         Used in the predict phase, after training.  Override
         """
-        seasons = data['seasons']
-        rosters = data['rosters']
+
+
         return data

@@ -59,7 +59,7 @@ class GameInput(BaseInput):
                     cmd = "{cp}cwgame -q -n -f 0-83 -y {y} {y}*.EV* > {dp}/games-{y}.csv".format(cp=settings.CHADWICK_PATH,  dp=settings.DATA_PATH,y=y)
                     subprocess.call(cmd, shell=True)
                 if not os.path.isfile('{0}/boxes-{1}.csv'.format(settings.DATA_PATH,y)):
-                    cmd = "{cp}cwbox -q -f 0-96 -X -y {y} {y}*.EV* > {dp}/boxes-{y}.csv".format(cp = settings.CHADWICK_PATH,  dp = settings.DATA_PATH,y=y)
+                    cmd = "{cp}cwbox -q -X -y {y} {y}*.EV* > {dp}/boxes-{y}.csv".format(cp = settings.CHADWICK_PATH,  dp = settings.DATA_PATH,y=y)
                     os.chdir(fold)
                     subprocess.call(cmd, shell=True)
             efiles +=[join_path(fold,i) for i in os.listdir(fold) if os.path.isfile(join_path(fold,i))]

@@ -5,7 +5,7 @@ from scrapy.selector import HtmlXPathSelector
 from scrapy.item import Item, Field
 import re
 
-bbr_base_url = ""
+bbr_base_url = "http://www.baseball-reference.com/boxes/"
 
 class Game(Item):
     url = Field()
@@ -23,18 +23,18 @@ class Game(Item):
     away_lineup = Field()
     play_by_play = Field()
 
-class SimpsonsSpider(CrawlSpider):
-    name = "snpp"
-    allowed_domains = ['www.snpp.com', 'snpp.com']
+class BBRSpider(CrawlSpider):
+    name = "bbr"
+    allowed_domains = ['www.baseball-reference.com', 'baseball-reference.com']
     start_urls = [bbr_base_url]
-    rules = [Rule(SgmlLinkExtractor(allow=['/episodes/\w+.html']), 'parse_script')]
+    rules = [Rule(SgmlLinkExtractor(allow=['/boxes/\w+/\w+.shtml']), 'parse_game')]
 
     def fix_field_names(self, field_name):
         field_name = re.sub(" ","_", field_name)
         field_name = re.sub(":","", field_name)
         return field_name
 
-    def parse_script(self, response):
+    def parse_game(self, response):
         x = HtmlXPathSelector(response)
         away, home = x.select('//span[@class="xx_large_text bold_text"]/text()').extract()
         teams = [away,home]
@@ -52,10 +52,15 @@ class SimpsonsSpider(CrawlSpider):
         pop = []
         for i in xrange(0,len(pop_descs)):
             pop_rows = play_by_play.select('tbody/tr[@id="event_{0}"]/td/text()'.format(i+1)).extract()
+            rob,pit = play_by_play.select('tbody/tr[@id="event_{0}"]/td/span/text()'.format(i+1))[0:2].extract()
             if len(pop_rows)==10:
-                pop_rows = pop_rows[0:5] + [0] + pop_rows[4:]
-            pop_dict = {pop_head[z]:pop_rows[z] for z in xrange(0,len(pop_head))}
-            pop_dict.update({'event' : i})
+                pop_rows = [pop_rows[0]] + pop_rows
+            pop_dict = {pop_head[z].lower():pop_rows[z] for z in xrange(0,len(pop_head))}
+            if "(" in  pop_dict['rob']:
+                pop_dict['pit(cnt)']=pop_dict['rob']
+            pop_dict['pit(cnt)'] = pit + pop_dict['pit(cnt)']
+            pop_dict['rob'] =rob
+            pop_dict.update({'event' : i,})
             pop.append(pop_dict)
         lineup_positions = lineups.select('tbody/tr/td/text()').extract()
         lineup_names = lineups.select('tbody/tr/td/a/text()').extract()

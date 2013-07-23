@@ -26,6 +26,12 @@ def table_exists(cur,name):
 class SportsFormats(DataFormats):
     events = "events"
 
+def get_team_and_year(r):
+    end = r.split("/")[-1]
+    team = end[0:3]
+    year = end[3:7]
+    return team, year
+
 class GameInput(BaseInput):
     """
     Extends baseinput to read simpsons scripts
@@ -52,6 +58,10 @@ class GameInput(BaseInput):
                 if not os.path.isfile('{0}/games-{1}.csv'.format(settings.DATA_PATH,y)):
                     cmd = "{cp}cwgame -q -n -f 0-83 -y {y} {y}*.EV* > {dp}/games-{y}.csv".format(cp=settings.CHADWICK_PATH,  dp=settings.DATA_PATH,y=y)
                     subprocess.call(cmd, shell=True)
+                if not os.path.isfile('{0}/boxes-{1}.csv'.format(settings.DATA_PATH,y)):
+                    cmd = "{cp}cwbox -q -f 0-96 -X -y {y} {y}*.EV* > {dp}/boxes-{y}.csv".format(cp = settings.CHADWICK_PATH,  dp = settings.DATA_PATH,y=y)
+                    os.chdir(fold)
+                    subprocess.call(cmd, shell=True)
             efiles +=[join_path(fold,i) for i in os.listdir(fold) if os.path.isfile(join_path(fold,i))]
 
         con = sqlite3.connect(settings.DB_PATH)
@@ -61,9 +71,7 @@ class GameInput(BaseInput):
             rosters = []
             for r in rfiles:
                 filestream = open(r)
-                end = r.split("/")[-1]
-                team = end[0:3]
-                year = end[3:7]
+                team,year = get_team_and_year(r)
                 df = pd.read_csv(filestream,names=["id","lastname","firstname","pbat","sbat","team","position"])
                 df['year'] = [year for i in xrange(0,df.shape[0])]
                 rosters.append(df)
@@ -77,6 +85,9 @@ class GameInput(BaseInput):
             games = []
             for g in game_files:
                 df = pd.read_csv(open(g))
+                team,year = get_team_and_year(g)
+                df['year'] = [year for i in xrange(0,df.shape[0])]
+                df['team'] = [team for i in xrange(0,df.shape[0])]
                 games.append(df)
             games = pd.concat(games,axis=0)
             sql.write_frame(games, name='games', con=con)
@@ -85,6 +96,9 @@ class GameInput(BaseInput):
             events = []
             for e in event_files:
                 df = pd.read_csv(open(e))
+                team,year = get_team_and_year(e)
+                df['year'] = [year for i in xrange(0,df.shape[0])]
+                df['team'] = [team for i in xrange(0,df.shape[0])]
                 events.append(df)
             events = pd.concat(events,axis=0)
             sql.write_frame(events, name='events', con=con)

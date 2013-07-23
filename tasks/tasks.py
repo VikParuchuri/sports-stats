@@ -15,6 +15,9 @@ from percept.tasks.train import Train
 from sklearn.ensemble import RandomForestClassifier
 import pickle
 import random
+import sqlite3
+from pandas.io import sql
+from collections import namedtuple
 
 
 import logging
@@ -36,7 +39,7 @@ def make_df(datalist, labels, name_prefix=""):
 
 row_types = ["id","info","start","play","sub","data"]
 
-class ProcessGame(Task):
+class ProcessGames(Task):
     data = Complex()
     row_data = List()
     speaker_code_dict = Dict()
@@ -60,5 +63,22 @@ class ProcessGame(Task):
         """
         Used in the predict phase, after training.  Override
         """
+
+        con = sqlite3.connect(settings.DB_PATH)
+        c = con.cursor()
+        rosters = sql.read_frame("select * from rosters",con)
+
+        tys = []
+        for i in xrange(0,rosters.shape[0]):
+            year = rosters.iloc[i]['year']
+            team = rosters.iloc[i]['team']
+            ty = [year,team]
+            if ty not in tys:
+                tys.append(ty)
+
+        for ty in tys:
+            year,team = ty
+            ros = rosters[((rosters['year']==year) & (rosters['team']==team))]
+
 
         return data

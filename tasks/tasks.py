@@ -43,14 +43,12 @@ class ProcessGame(Task):
     speaker_codes = List()
     vectorizer = Complex()
 
-    data_format = SportsFormats.events
+    data_format = SportsFormats.dataframe
 
     category = RegistryCategories.preprocessors
     namespace = get_namespace(__module__)
 
-    help_text = "Cleanup simpsons scripts."
-
-    args = {'scriptfile' : os.path.abspath(os.path.join(settings.DATA_PATH, "script_tasks"))}
+    help_text = "Process sports events."
 
     def train(self, data, target, **kwargs):
         """
@@ -62,6 +60,5 @@ class ProcessGame(Task):
         """
         Used in the predict phase, after training.  Override
         """
-
 
         return data

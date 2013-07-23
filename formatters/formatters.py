@@ -14,7 +14,6 @@ import re
 import logging
 log = logging.getLogger(__name__)
 
-
 class EventFormatter(JSONFormat):
     namespace = get_namespace(__module__)
 
@@ -22,9 +21,10 @@ class EventFormatter(JSONFormat):
         """
         Reads subtitle format input data and converts to json.
         """
+        log.info("Hello")
         return input_data
 
-    def to_events(self):
+    def to_dataframe(self):
         return self.data
 
 

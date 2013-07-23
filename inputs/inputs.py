@@ -12,11 +12,16 @@ import json
 import re
 import pandas as pd
 import subprocess
+from pandas.io import sql
+import sqlite3
 
 log = logging.getLogger(__name__)
 
 def join_path(p1,p2):
     return os.path.abspath(os.path.join(p1,p2))
+
+def table_exists(cur,name):
+    return len(list(cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='{0}';".format(name))))>0
 
 class SportsFormats(DataFormats):
     events = "events"
@@ -49,35 +54,44 @@ class GameInput(BaseInput):
                     subprocess.call(cmd, shell=True)
             efiles +=[join_path(fold,i) for i in os.listdir(fold) if os.path.isfile(join_path(fold,i))]
 
-        rfiles = [f for f in efiles if f.endswith(".ROS")]
-        rosters = []
-        for r in rfiles:
-            filestream = open(r)
-            end = r.split("/")[-1]
-            team = end[0:3]
-            year = end[3:7]
-            df = pd.read_csv(filestream,names=["id","lastname","firstname","pbat","sbat","team","position"])
-            df['year'] = [year for i in xrange(0,df.shape[0])]
-            rosters.append(df)
-        roster = pd.concat(rosters,axis=0)
+        con = sqlite3.connect(settings.DB_PATH)
+        c = con.cursor()
+        if not table_exists(c,"rosters"):
+            rfiles = [f for f in efiles if f.endswith(".ROS")]
+            rosters = []
+            for r in rfiles:
+                filestream = open(r)
+                end = r.split("/")[-1]
+                team = end[0:3]
+                year = end[3:7]
+                df = pd.read_csv(filestream,names=["id","lastname","firstname","pbat","sbat","team","position"])
+                df['year'] = [year for i in xrange(0,df.shape[0])]
+                rosters.append(df)
+            roster = pd.concat(rosters,axis=0)
+            sql.write_frame(roster, name='rosters', con=con)
 
-        game_files = [g for g in os.listdir(settings.DATA_PATH) if g.startswith('games-')]
-        event_files = [e for e in os.listdir(settings.DATA_PATH) if e.startswith('events-')]
+        game_files = [join_path(settings.DATA_PATH,g) for g in os.listdir(settings.DATA_PATH) if g.startswith('games-')]
+        event_files = [join_path(settings.DATA_PATH,e) for e in os.listdir(settings.DATA_PATH) if e.startswith('events-')]
 
-        games = []
-        for g in game_files:
-            df = pd.read_csv(open(g))
-            games.append(df)
-        games = pd.concat(games,axis=0)
+        if not table_exists(c,"games"):
+            games = []
+            for g in game_files:
+                df = pd.read_csv(open(g))
+                games.append(df)
+            games = pd.concat(games,axis=0)
+            sql.write_frame(games, name='games', con=con)
 
-        events = []
-        for e in event_files:
-            df = pd.read_csv(open(e))
-            events.append(df)
-        events = pd.concat(events,axis=0)
+        if not table_exists(c,"events"):
+            events = []
+            for e in event_files:
+                df = pd.read_csv(open(e))
+                events.append(df)
+            events = pd.concat(events,axis=0)
+            sql.write_frame(events, name='events', con=con)
+
 
         self.data = {
-            'rosters' : roster,
-            'games' : games,
-            'events' : events,
+            'rosters' : 'roster',
+            'games' : 'games',
+            'events' : 'events',
         }

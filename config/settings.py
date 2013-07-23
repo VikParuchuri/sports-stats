@@ -33,6 +33,8 @@ DATA_PATH = os.path.abspath(os.path.join(PROJECT_PATH, "stored_data"))
 if not os.path.exists(DATA_PATH):
     os.makedirs(DATA_PATH)
 
+DB_PATH = os.path.abspath(os.path.join(DATA_PATH,"games.sql"))
+
 #Commands are discovered here, and tasks/inputs/formats are imported using only these modules
 INSTALLED_APPS = [
     'sports-stats.inputs',

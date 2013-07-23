@@ -5,6 +5,9 @@ from scrapy.selector import HtmlXPathSelector
 from scrapy.item import Item, Field
 import re
 
+import logging
+log = logging.getLogger(__name__)
+
 bbr_base_url = "http://www.baseball-reference.com/boxes/"
 
 class Game(Item):
@@ -46,35 +49,31 @@ class BBRSpider(CrawlSpider):
         fieldcond = x.select('//div[@id="fieldcond"]/text()').extract()[0]
         lineups = x.select('//table[@class="sortable  stats_table"]')[4]
         play_by_play = x.select('//table[@id="play_by_play"]')[0]
-        pop_head = play_by_play.select('thead/tr/th/text()').extract()
-        pop_head = [z for z in pop_head if z not in ["R/O"]]
-        pop_descs = play_by_play.select('tbody/tr[@class="partial_table black_text bold_text shade_text"]/td/span/text()').extract()
+        pop_head = get_row(play_by_play.select('thead/tr/th'))
+        pop_descs = get_row(play_by_play.select('tbody/tr[@class="partial_table black_text bold_text shade_text"]/td/span'))
         pop = []
-        for i in xrange(0,len(pop_descs)):
-            pop_rows = play_by_play.select('tbody/tr[@id="event_{0}"]/td/text()'.format(i+1)).extract()
-            rob,pit = play_by_play.select('tbody/tr[@id="event_{0}"]/td/span/text()'.format(i+1))[0:2].extract()
-            if len(pop_rows)==10:
-                pop_rows = [pop_rows[0]] + pop_rows
-            pop_dict = {pop_head[z].lower():pop_rows[z] for z in xrange(0,len(pop_head))}
-            if "(" in  pop_dict['rob']:
-                pop_dict['pit(cnt)']=pop_dict['rob']
-            pop_dict['pit(cnt)'] = pit + pop_dict['pit(cnt)']
-            pop_dict['rob'] =rob
-            pop_dict.update({'event' : i,})
-            pop.append(pop_dict)
-        lineup_positions = lineups.select('tbody/tr/td/text()').extract()
-        lineup_names = lineups.select('tbody/tr/td/a/text()').extract()
+        try:
+            for i in xrange(0,len(pop_descs)):
+                pop_rows = get_row(play_by_play.select('tbody/tr[@id="event_{0}"]/td'.format(i+1)))
+                #rob,pit = play_by_play.select('tbody/tr[@id="event_{0}"]/td/span/text()'.format(i+1))[0:2].extract()
+                pop_dict = {pop_head[z].lower():pop_rows[z] for z in xrange(0,len(pop_head))}
+                pop_dict.update({'event' : i,})
+                pop.append(pop_dict)
+        except Exception:
+            log.exception("Problem parsing play by play.")
+        lineup_positions = [p for p in get_row(lineups.select('tbody/tr/td')) if p!=""]
         away_lineup = []
         home_lineup = []
-        for i in xrange(0,len(lineup_names)):
-            player = lineup_names[i]
-            position = lineup_positions[i*2]
-            order = lineup_positions[(i*2-1)]
-            ld = {'player' : player, 'position' : position, 'order' : order}
-            if i%2 == 0:
-                away_lineup.append(ld)
-            else:
-                home_lineup.append(ld)
+        counter=0
+        for i in xrange(0,len(lineup_positions),3):
+            if len(lineup_positions)>i+2:
+                order,player,position = lineup_positions[i:i+3]
+                ld = {'player' : player, 'position' : position, 'order' : order}
+                if counter%2 == 0:
+                    away_lineup.append(ld)
+                else:
+                    home_lineup.append(ld)
+                counter+=1
         games = []
         for (i,te) in enumerate(teams):
             game = Game()
@@ -96,21 +95,44 @@ class BBRSpider(CrawlSpider):
             for t in tables:
                 tid = t.select('@id').extract()[0]
                 if te in tid:
-                    headers = t.select('thead/tr/th/text()').extract()
+                    headers = get_row(t.select('thead/tr/th'))
                     stat_type = headers[0].lower()
-                    headers[0] = "position"
+                    headers[0] = "player"
                     headers = [h.lower() for h in headers]
                     players = t.select('tbody/tr[@class="normal_text"]')
                     for p in players:
-                        tds = p.select('td/text()').extract()
+                        if stat_type=="batting":
+                            headers = headers + ["altpos"]
+                        tds = get_row(p.select('td'))
                         try:
-                            name = p.select('td/a/text()')[0].extract()
+                            bat = p.select('td/text()')[0].extract()
                         except Exception:
                             name = None
+                            log.exception("Problem parsing player name.")
                         datarow = {headers[i] : tds[i] for i in xrange(0,len(tds))}
-                        datarow.update({'type' : stat_type, 'player' : name})
+                        datarow.update({'type' : stat_type, 'bat' : bat})
                         if datarow and datarow['player']:
                             data.append(datarow)
             game['data'] = data
             games.append(game)
         return games
+
+def get_row(sels):
+    ftext= []
+    for s in sels:
+        s = s.extract()
+        ftext.append(get_text(s))
+    return ftext
+
+def get_text(text):
+    text = extract_text(text)
+    text = re.sub("<.+>","",text)
+    return text
+
+def extract_text(text):
+    m = re.search('>(.+)<',text)
+    if m is None:
+        return text
+    else:
+        text = m.group(1)
+    return get_text(text)

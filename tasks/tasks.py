@@ -79,6 +79,7 @@ class ProcessGames(Task):
         for ty in tys:
             year,team = ty
             ros = rosters[((rosters['year']==year) & (rosters['team']==team))]
+            players = list(ros['id'])
 
 
         return data

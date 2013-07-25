@@ -21,7 +21,6 @@ class EventFormatter(JSONFormat):
         """
         Reads subtitle format input data and converts to json.
         """
-        log.info("Hello")
         return input_data
 
     def to_dataframe(self):

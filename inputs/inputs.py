@@ -50,7 +50,7 @@ class GameInput(BaseInput):
         for fold in efolds:
             files = [i for i in os.listdir(fold) if os.path.isfile(join_path(fold,i)) if i.endswith(".EVN")]
             years = list(set([i[:4] for i in files]))
-            for y in years:
+            for (i,y) in enumerate(years):
                 if not os.path.isfile('{0}/events-{1}.csv'.format(settings.DATA_PATH,y)):
                     cmd = "{cp}cwevent -q -n -f 0-96 -x 0-62 -y {y} {y}*.EV* > {dp}/events-{y}.csv".format(cp = settings.CHADWICK_PATH,  dp = settings.DATA_PATH,y=y)
                     os.chdir(fold)
@@ -85,9 +85,8 @@ class GameInput(BaseInput):
             games = []
             for g in game_files:
                 df = pd.read_csv(open(g))
-                team,year = get_team_and_year(g)
+                year = e.split('-')[1].split('\.')[0]
                 df['year'] = [year for i in xrange(0,df.shape[0])]
-                df['team'] = [team for i in xrange(0,df.shape[0])]
                 games.append(df)
             games = pd.concat(games,axis=0)
             sql.write_frame(games, name='games', con=con)
@@ -96,9 +95,8 @@ class GameInput(BaseInput):
             events = []
             for e in event_files:
                 df = pd.read_csv(open(e))
-                team,year = get_team_and_year(e)
+                year = e.split('-')[1].split('\.')[0]
                 df['year'] = [year for i in xrange(0,df.shape[0])]
-                df['team'] = [team for i in xrange(0,df.shape[0])]
                 events.append(df)
             events = pd.concat(events,axis=0)
             sql.write_frame(events, name='events', con=con)
